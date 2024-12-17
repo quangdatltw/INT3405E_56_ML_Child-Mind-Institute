@@ -7,8 +7,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
-train = pd.read_csv('D:/Code/Python4/ML_CMI/train.csv')
-df_test = pd.read_csv('D:/Code/Python4/ML_CMI/test.csv')
+train = pd.read_csv('res/train.csv')
+df_test = pd.read_csv('res/test.csv')
 
 # Preprocessing: Select common columns
 common_columns = train.columns.intersection(df_test.columns)
