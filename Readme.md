@@ -1435,7 +1435,19 @@ Below is the result, the model is performing better, with improved precision and
 
 ## GridSearchCV (V3)
 GridSearchCV is a powerful tool in Scikit-learn for hyperparameter tuning, designed to find the best parameter combination for a given machine learning model. It performs an exhaustive search over a specified parameter grid, evaluating each combination using cross-validation to ensure robust performance. The tool uses the provided scoring metric to determine the best-performing parameters and can automatically refit the model using those parameters for final use.
-
+```python
+# Define the parameter grid for RandomForestClassifier
+param_grid = {
+    'classifier__n_estimators': [50, 100, 150],  # Number of trees in the forest
+    'classifier__max_depth': [None, 10, 20],    # Maximum depth of the trees
+    'classifier__min_samples_split': [2, 5, 10],  # Minimum samples required to split a node
+    'classifier__min_samples_leaf': [1, 2, 4]     # Minimum samples required at each leaf node
+}
+# Initialize GridSearchCV
+grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='f1_macro', n_jobs=-1)
+# Fit GridSearchCV to the training data
+grid_search.fit(X_train, y_train)
+```
 Balancing Model Complexity: to prevent the model from overfitting and underfitting, we use three sets of parameters in the grid search. Each set represents different levels of model complexity: one with a smaller number of trees and shallower depths to prevent overfitting, another with larger numbers of trees and deeper depths to capture more complexity, and a third that strikes a balance between the two.
 
 In version 3, by adding GridSearchCV we observed an improvement in performance, with the score increasing from 0.361 to 0.423 on public test. However, we find it overfitting after private score significantly dropped to just 0.332.
@@ -1450,19 +1462,7 @@ Here is some topic about the affection of random seed.
 https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552180   
 https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552625
 
-```python
-# Define the parameter grid for RandomForestClassifier
-param_grid = {
-    'classifier__n_estimators': [50, 100, 150],  # Number of trees in the forest
-    'classifier__max_depth': [None, 10, 20],    # Maximum depth of the trees
-    'classifier__min_samples_split': [2, 5, 10],  # Minimum samples required to split a node
-    'classifier__min_samples_leaf': [1, 2, 4]     # Minimum samples required at each leaf node
-}
-# Initialize GridSearchCV
-grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='f1_macro', n_jobs=-1)
-# Fit GridSearchCV to the training data
-grid_search.fit(X_train, y_train)
-```
+
 
 
 ## The combination (V4)
@@ -1485,7 +1485,7 @@ Why were these five models selected?
 
 Ensemble Models: We use a Voting Regressor to combine the predictions of several powerful models: LightGBM, XGBoost, and CatBoost, Random Forest. This method helps improve the overall performance by leveraging the strengths of each model, reduce overfitting and improves generalization.
 - The model uses a Voting Regressor, which combines the predictions from LightGBM, XGBoost, and CatBoost, Random Forest. This approach is beneficial as it leverages the strengths of multiple models, reducing overfitting and improving overall model performance.     
- Instead of selecting the "best" single model, the Voting Regressor averages the predictions of several models, aiming to reduce the variance and improve prediction accuracy.
+ Instead of selecting the "best" single model, the Voting Regressor averages the predictions of several models, aiming to reduce the variance and improve prediction accuracy.   
 ![png](Report_files/Picture1.png)
 
 
@@ -1501,9 +1501,12 @@ Ensemble Models: We use a Voting Regressor to combine the predictions of several
 
 
 ### Comparison of V3 and V4
+### V3
 Random Forest could be preferred in scenarios where the dataset distribution is heavily skewed toward the majority class, and computational resources are limited.    
 ![png](Report_files/Picture6.png)
-![png](Report_files/3.png)
+![png](Report_files/3.png)   
+     
+### V4
 The ensemble model is more robust and consistent, providing reliable predictions across all classes and datasets. While it sacrifices some accuracy for the majority class, its balanced performance and generalization capabilities make it a better overall choice.   
 ![png](Report_files/Picture7.png)
 ![png](Report_files/4.png)
