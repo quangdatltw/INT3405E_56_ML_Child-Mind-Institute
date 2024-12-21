@@ -423,11 +423,7 @@ Verification of rows with different original and recalculated SII:
 
 
 
-<style type="text/css">
-#T_3f915_row0_col18, #T_3f915_row0_col22, #T_3f915_row1_col0, #T_3f915_row1_col1, #T_3f915_row1_col2, #T_3f915_row1_col3, #T_3f915_row1_col4, #T_3f915_row1_col5, #T_3f915_row1_col6, #T_3f915_row1_col7, #T_3f915_row1_col8, #T_3f915_row1_col9, #T_3f915_row1_col10, #T_3f915_row1_col11, #T_3f915_row1_col12, #T_3f915_row1_col13, #T_3f915_row1_col14, #T_3f915_row1_col15, #T_3f915_row1_col16, #T_3f915_row1_col17, #T_3f915_row1_col18, #T_3f915_row1_col19, #T_3f915_row1_col22, #T_3f915_row2_col4, #T_3f915_row2_col22, #T_3f915_row3_col16, #T_3f915_row3_col22, #T_3f915_row4_col18, #T_3f915_row4_col22, #T_3f915_row5_col15, #T_3f915_row5_col22, #T_3f915_row6_col7, #T_3f915_row6_col8, #T_3f915_row6_col9, #T_3f915_row6_col18, #T_3f915_row6_col19, #T_3f915_row6_col22, #T_3f915_row7_col13, #T_3f915_row7_col14, #T_3f915_row7_col22, #T_3f915_row8_col7, #T_3f915_row8_col22, #T_3f915_row9_col11, #T_3f915_row9_col22, #T_3f915_row10_col0, #T_3f915_row10_col1, #T_3f915_row10_col2, #T_3f915_row10_col3, #T_3f915_row10_col4, #T_3f915_row10_col5, #T_3f915_row10_col6, #T_3f915_row10_col7, #T_3f915_row10_col8, #T_3f915_row10_col9, #T_3f915_row10_col22, #T_3f915_row11_col0, #T_3f915_row11_col3, #T_3f915_row11_col16, #T_3f915_row11_col22, #T_3f915_row12_col14, #T_3f915_row12_col17, #T_3f915_row12_col22, #T_3f915_row13_col17, #T_3f915_row13_col18, #T_3f915_row13_col22, #T_3f915_row14_col15, #T_3f915_row14_col22, #T_3f915_row15_col4, #T_3f915_row15_col22, #T_3f915_row16_col6, #T_3f915_row16_col8, #T_3f915_row16_col22 {
-  background-color: #3366cc;
-}
-</style>
+
 <table id="T_3f915">
   <thead>
     <tr>
