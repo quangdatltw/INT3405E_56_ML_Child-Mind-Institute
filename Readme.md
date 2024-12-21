@@ -1,3 +1,6 @@
+# Table of Contents
+- [Explore Data](#explore-data)
+- [A simple classification model](#a-simple-classification-model)
 
 # Understanding the problem
 
@@ -1299,15 +1302,15 @@ Boys have a slightly higher risk of internet addiction than girls
 
 # A simple classification model
 
-As díscussed earlier, we have three main approaches to tackle this problem:
+As discussed earlier, we have three main approaches to tackle this problem:
 1. Ordinal classification
 2. Multiclass classification
 3. Regression
 
 For this initial model, we will use the second approach: Multiclass classification.
-Because the target variable is cateogorical with 4 levels. Multiclass classification is designed to handle such problems where the goal is to classify instances into one of several categories.
+Because the target variable is categorical with 4 levels. Multiclass classification is designed to handle such problems, with the goal of classifying instances into one of several categories.
 
-Also Multiclass classification can be applied using a variety of algorithms (e.g., Random Forest, XGBoost, LightGBM), allowing for flexibility in model selection and the ability to leverage ensemble methods for improved performance.
+Also, Multiclass classification can be applied using a variety of algorithms (e.g., Random Forest, XGBoost, LightGBM), allowing for flexibility in model selection and the ability to leverage ensemble methods for improved performance.
 
 
 
@@ -1409,7 +1412,7 @@ As we can see below, the model is not performing well, with low precision and re
 
 
 ## SMOTE (V2)
-The Synthetic Minority Over-Sampling Technique (SMOTE) is a powerful method used to handle class imbalance in datasets. SMOTE handles this issue by generating samples of minority classes to make the class distribution balanced. SMOTE works by generating synthetic examples in the feature space of the minority class. Using SMOTE to address this imbalance dataset is essential for enhancing the model’s performance. In the second version we adding SMOTE to solve the unbalance data problem, it significantly boosts the model's performance, increasing from 0.15 to over 0.361 on private test and from 0.254 to 0.361 on public test.
+The Synthetic Minority Over-Sampling Technique (SMOTE) is a powerful method used to handle class imbalance in datasets. SMOTE handles this issue by generating samples of minority classes to make the class distribution balanced. SMOTE works by generating synthetic examples in the feature space of the minority class. Using SMOTE to address this imbalanced dataset is essential for enhancing the model’s performance. In the second version, we added SMOTE to solve the unbalanced data problem, it significantly boosts the model's performance, increasing from 0.15 to over 0.361 on private test and from 0.254 to 0.361 on public test.
 
 Below is the result, the model is performing better, with improved precision and recall for the minority classes (2 and 3). Although the model is still not perfect, we still need to improve it further.
 
@@ -1429,7 +1432,7 @@ Below is the result, the model is performing better, with improved precision and
     
 
 
-## GridSearchCV
+## GridSearchCV (V3)
 GridSearchCV is a powerful tool in Scikit-learn for hyperparameter tuning, designed to find the best parameter combination for a given machine learning model. It performs an exhaustive search over a specified parameter grid, evaluating each combination using cross-validation to ensure robust performance. The tool uses the provided scoring metric to determine the best-performing parameters and can automatically refit the model using those parameters for final use.
 
 Balancing Model Complexity: to prevent the model from overfitting and underfitting, we use three sets of parameters in the grid search. Each set represents different levels of model complexity: one with a smaller number of trees and shallower depths to prevent overfitting, another with larger numbers of trees and deeper depths to capture more complexity, and a third that strikes a balance between the two.
