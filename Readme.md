@@ -1464,3 +1464,42 @@ grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='f1_macro', n_job
 # Fit GridSearchCV to the training data
 grid_search.fit(X_train, y_train)
 ```
+## The combination (V4)
+### Another approach from using Random Forest
+Initially, a Random Forest classifier served as the baseline for this task. However, challenges in optimizing performance metrics prompted the adoption of advanced ensemble techniques, leveraging gradient boosting methods to enhance both accuracy and generalization.
+
+We will use four models: LightGBM, Random Forest, CatBoost, XGBoost.
+
+Why were these five models selected?
+- LightGBM : serves as a foundation for ensemble models with fast learning speed and high prediction performance. It helps improve the overall performance of the ensemble by quickly learning patterns that other models might miss. Efficient for large datasets with many features, handles missing data well, and offers fast training.
+
+
+- Random Forest : predict by combining multiple decision trees, errors in individual trees are offset, and various patterns are learned to achieve high prediction accuracy and can be applied to a variety of problems. -> ExtraTreesRegressor -> x
+
+
+- CatBoost : improves the performance of ensemble models by effectively processing these features when there are many categorical features in the dataset. It reduces errors that may occur when other models do not properly handle categorical characteristics and enables more accurate predictions. Handles categorical features automatically and tends to perform well with minimal hyperparameter tuning
+
+
+- XGBoost: not only has excellent performance, but also greatly improves learning speed by parallelizing the learning process. It can efficiently utilize multi-core CPUs to quickly learn even large datasets
+
+Ensemble Models: We use a Voting Regressor to combine the predictions of several powerful models: LightGBM, XGBoost, and CatBoost, Random Forest. This method helps improve the overall performance by leveraging the strengths of each model, reduce overfitting and improves generalization.
+- The model uses a Voting Regressor, which combines the predictions from LightGBM, XGBoost, and CatBoost, Random Forest. This approach is beneficial as it leverages the strengths of multiple models, reducing overfitting and improving overall model performance. Instead of selecting the "best" single model, the Voting Regressor averages the predictions of several models, aiming to reduce the variance and improve prediction accuracy.
+![png](Report_files/Picture1.png)
+
+
+### Creating the Voting Regressor
+- We initialize a VotingRegressor with a list of estimators, each represented by a tuple (name, model):
+![png](Report_files/Picture2.png)
+- The predictions from each model are combined using a simple averaging strategy. This means the final prediction is the mean of predictions made by the individual models.
+<div style="display: flex; justify-content: space-between;">
+  <img src="Report_files/Picture3.png" alt="Image 1" style="width: 30%;"/>
+  <img src="Report_files/Picture4.png" alt="Image 2" style="width: 30%;"/>
+  <img src="Report_files/Picture5.png" alt="Image 3" style="width: 30%;"/>
+</div>
+
+![png](Report_files/Picture6.png)
+![png](Report_files/3.png)
+Random Forest could be preferred in scenarios where the dataset distribution is heavily skewed toward the majority class, and computational resources are limited.   
+![png](Report_files/Picture7.png)
+![png](Report_files/4.png)
+The ensemble model is more robust and consistent, providing reliable predictions across all classes and datasets. While it sacrifices some accuracy for the majority class, its balanced performance and generalization capabilities make it a better overall choice.
