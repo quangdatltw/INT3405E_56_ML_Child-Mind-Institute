@@ -1451,19 +1451,6 @@ https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-us
 https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552625
 
 
-```python
-# Define the parameter grid for RandomForestClassifier
-param_grid = {
-    'classifier__n_estimators': [50, 100, 150],  # Number of trees in the forest
-    'classifier__max_depth': [None, 10, 20],    # Maximum depth of the trees
-    'classifier__min_samples_split': [2, 5, 10],  # Minimum samples required to split a node
-    'classifier__min_samples_leaf': [1, 2, 4]     # Minimum samples required at each leaf node
-}
-# Initialize GridSearchCV
-grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='f1_macro', n_jobs=-1)
-# Fit GridSearchCV to the training data
-grid_search.fit(X_train, y_train)
-```
 ## The combination (V4)
 ### Another approach from using Random Forest
 Initially, a Random Forest classifier served as the baseline for this task. However, challenges in optimizing performance metrics prompted the adoption of advanced ensemble techniques, leveraging gradient boosting methods to enhance both accuracy and generalization.
@@ -1497,9 +1484,11 @@ Ensemble Models: We use a Voting Regressor to combine the predictions of several
   <img src="Report_files/Picture5.png" alt="Image 3" style="width: 30%;"/>
 </div>
 
+
+### Comparison of V3 and V4
+Random Forest could be preferred in scenarios where the dataset distribution is heavily skewed toward the majority class, and computational resources are limited.    
 ![png](Report_files/Picture6.png)
 ![png](Report_files/3.png)
-Random Forest could be preferred in scenarios where the dataset distribution is heavily skewed toward the majority class, and computational resources are limited.   
+The ensemble model is more robust and consistent, providing reliable predictions across all classes and datasets. While it sacrifices some accuracy for the majority class, its balanced performance and generalization capabilities make it a better overall choice.   
 ![png](Report_files/Picture7.png)
 ![png](Report_files/4.png)
-The ensemble model is more robust and consistent, providing reliable predictions across all classes and datasets. While it sacrifices some accuracy for the majority class, its balanced performance and generalization capabilities make it a better overall choice.
