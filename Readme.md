@@ -1441,8 +1441,8 @@ In version 3, by adding GridSearchCV we observed an improvement in performance, 
 
 
 
-We believe that one of the reason the model is overfitting because of the random seed we use. When we use different random seed, the model will perform differently, usually not as good as the seed we use in the previous version. But it still improve the model performance compare to not using GridSearchCV. Here is some topic about the affection of random seed.
-https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552180
+We believe that one of the reason the model is overfitting because of the random seed we use. When we use different random seed, the model will perform differently, usually not as good as the seed we use in the previous version. But it still improve the model performance compare to not using GridSearchCV. Here is some topic about the affection of random seed.   
+https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552180   
 https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552625
 
 
