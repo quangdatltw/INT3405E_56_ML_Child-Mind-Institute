@@ -23,12 +23,13 @@ There are 3 popular approaches we can use:
 3. Regression (ignore the discrete nature of categories and treat sii as a continuous variable, then round prediction)
 
 
-Also, another strategy involves predicting responses to each question of the Parent-Child Internet Addiction Test: i.e. pedict individual question scores as separate targets, sum the predicted scores to get the `PCIAT-PCIAT_Total` and map predictions to the corresponding sii category. But this method may seem a bit difficult for someone who has no knowledge of the related field
+Also, another strategy involves predicting responses to each question of the Parent-Child Internet Addiction Test: i.e. predict individual question scores as separate targets, sum the predicted scores to get the `PCIAT-PCIAT_Total` and map predictions to the corresponding sii category. But this method may seem a bit difficult for someone who has no knowledge of the related field
 
 
 # Explore Data
-
-
+Below are just some shallow analyses of the data. For deeper and further EDA using specialized knowledge, we recommended these 2 topics:   
+https://www.kaggle.com/code/antoninadolgorukova/cmi-piu-features-eda   
+https://www.kaggle.com/code/ambrosm/piu-eda-which-makes-sense
 
 ### Train data
 
@@ -1390,7 +1391,7 @@ pipeline = Pipeline(steps=[
 
 ## Random Forest Classifier (V1)
 Random Forest algorithm is a powerful tree learning technique in Machine Learning. It works by creating a number of Decision Trees during the training phase. Each tree is constructed using a random subset of the data set to measure a random subset of features in each partition. This randomness introduces variability among individual trees, reducing the risk of overfitting and improving overall prediction performance. Additionally, it is well-suited for multi-class classification problems. Our initial implementation using only the Random Forest classifier performed quite poorly, with score 0.150 on private test and 0.254 on public test.
-
+![png](Report_files/1.png)
 As we can see below, the model is not performing well, with low precision and recall for the minority classes (2 and 3). This is likely due to the imbalanced nature of the target variable, which has a majority of samples in classes 0 and 1.
 
 
@@ -1413,7 +1414,7 @@ As we can see below, the model is not performing well, with low precision and re
 
 ## SMOTE (V2)
 The Synthetic Minority Over-Sampling Technique (SMOTE) is a powerful method used to handle class imbalance in datasets. SMOTE handles this issue by generating samples of minority classes to make the class distribution balanced. SMOTE works by generating synthetic examples in the feature space of the minority class. Using SMOTE to address this imbalanced dataset is essential for enhancing the model’s performance. In the second version, we added SMOTE to solve the unbalanced data problem, it significantly boosts the model's performance, increasing from 0.15 to over 0.361 on private test and from 0.254 to 0.361 on public test.
-
+![png](Report_files/2.png)
 Below is the result, the model is performing better, with improved precision and recall for the minority classes (2 and 3). Although the model is still not perfect, we still need to improve it further.
 
 
@@ -1438,10 +1439,14 @@ GridSearchCV is a powerful tool in Scikit-learn for hyperparameter tuning, desig
 Balancing Model Complexity: to prevent the model from overfitting and underfitting, we use three sets of parameters in the grid search. Each set represents different levels of model complexity: one with a smaller number of trees and shallower depths to prevent overfitting, another with larger numbers of trees and deeper depths to capture more complexity, and a third that strikes a balance between the two.
 
 In version 3, by adding GridSearchCV we observed an improvement in performance, with the score increasing from 0.361 to 0.423 on public test. However, we find it overfitting after private score significantly dropped to just 0.332.
+![png](Report_files/3.png)
 
 
-
-We believe that one of the reason the model is overfitting because of the random seed we use. When we use different random seed, the model will perform differently, usually not as good as the seed we use in the previous version. But it still improve the model performance compare to not using GridSearchCV. Here is some topic about the affection of random seed.   
+We believe that one of the reason the model is overfitting because of the random seed we use. When we use different random seed, the model will perform differently, usually not as good as the seed we use in the previous version. But it still improve the model performance compare to not using GridSearchCV. 
+![png](Report_files/3.1.png)
+![png](Report_files/3.2.png)
+![png](Report_files/3.3.png)
+Here is some topic about the affection of random seed.   
 https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552180   
 https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552625
 
