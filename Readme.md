@@ -1450,6 +1450,20 @@ Here is some topic about the affection of random seed.
 https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552180   
 https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-use/discussion/552625
 
+```python
+# Define the parameter grid for RandomForestClassifier
+param_grid = {
+    'classifier__n_estimators': [50, 100, 150],  # Number of trees in the forest
+    'classifier__max_depth': [None, 10, 20],    # Maximum depth of the trees
+    'classifier__min_samples_split': [2, 5, 10],  # Minimum samples required to split a node
+    'classifier__min_samples_leaf': [1, 2, 4]     # Minimum samples required at each leaf node
+}
+# Initialize GridSearchCV
+grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='f1_macro', n_jobs=-1)
+# Fit GridSearchCV to the training data
+grid_search.fit(X_train, y_train)
+```
+
 
 ## The combination (V4)
 ### Another approach from using Random Forest
