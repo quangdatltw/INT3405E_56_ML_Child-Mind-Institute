@@ -1,26 +1,3 @@
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import warnings
-import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-```
-
-
-```python
-warnings.filterwarnings('ignore', category=FutureWarning)
-
-sns.set(style="whitegrid")
-%matplotlib inline
-```
-
 # Understanding the problem
 
 The aim of this competition is to predict the Severity Impairment Index (sii), which measures the level of problematic internet use among children and adolescents, based on physical activity data and other features.
@@ -48,20 +25,8 @@ Also, another strategy involves predicting responses to each question of the Par
 # Explore Data
 
 
-```python
-train = pd.read_csv('res/train.csv')
-test = pd.read_csv('res/test.csv')
-data_dict = pd.read_csv('res/data_dictionary.csv')
-```
 
 ### Train data
-
-
-```python
-display(train.head())
-print(f"Train shape: {train.shape}")
-```
-
 
 <div>
 <style scoped>
@@ -227,7 +192,6 @@ print(f"Train shape: {train.shape}")
     </tr>
   </tbody>
 </table>
-<p>5 rows × 82 columns</p>
 </div>
 
 
@@ -235,13 +199,6 @@ print(f"Train shape: {train.shape}")
     
 
 ### Test data
-
-
-```python
-display(test.head())
-print(f"Test shape: {test.shape}")
-```
-
 
 <div>
 <style scoped>
@@ -407,7 +364,6 @@ print(f"Test shape: {test.shape}")
     </tr>
   </tbody>
 </table>
-<p>5 rows × 59 columns</p>
 </div>
 
 
@@ -415,12 +371,6 @@ print(f"Test shape: {test.shape}")
     
 
 ### Data dictionary
-
-
-```python
-data_dict
-```
-
 
 
 
@@ -552,7 +502,7 @@ data_dict
     </tr>
   </tbody>
 </table>
-<p>81 rows × 6 columns</p>
+
 </div>
 
 
@@ -566,17 +516,6 @@ Let's identify the features that are related to the target variable and that are
 We have season of participation in `PCIAT-Season` and total Score in `PCIAT-PCIAT_Total`; so there are 22 PCIAT test-related columns in total.
 
 `PCIAT-PCIAT_Total` align with the corresponding sii categories, we will calculat its minimum and maximum scores for each sii category:
-
-
-```python
-pciat_min_max = train.groupby('sii')['PCIAT-PCIAT_Total'].agg(['min', 'max'])
-pciat_min_max = pciat_min_max.rename(
-    columns={'min': 'Minimum PCIAT total Score', 'max': 'Maximum total PCIAT Score'}
-)
-pciat_min_max
-```
-
-
 
 
 <div>
@@ -634,13 +573,6 @@ pciat_min_max
 
 
 
-```python
-data_dict[data_dict['Field'] == 'PCIAT-PCIAT_Total']['Value Labels'].iloc[0]
-```
-
-
-
-
     'Severity Impairment Index: 0-30=None; 31-49=Mild; 50-79=Moderate; 80-100=Severe'
 
 
@@ -650,44 +582,7 @@ data_dict[data_dict['Field'] == 'PCIAT-PCIAT_Total']['Value Labels'].iloc[0]
 Below We recalculate the SII based on `PCIAT_Total` and the maximum possible score if missing values were answered (5 points), ensuring that the recalculated SII meets the intended thresholds even with some missing answers.
 
 
-```python
-# Define PCIAT_cols as a list of relevant column names
-PCIAT_cols = [f'PCIAT-PCIAT_{i:02d}' for i in range(1, 21)]
-
-# Function to recalculate sii
-def recalculate_sii(row):
-    if pd.isna(row['PCIAT-PCIAT_Total']):
-        return np.nan
-    max_possible = row['PCIAT-PCIAT_Total'] + row[PCIAT_cols].isna().sum() * 5
-    if row['PCIAT-PCIAT_Total'] <= 30 and max_possible <= 30:
-        return 0
-    elif 31 <= row['PCIAT-PCIAT_Total'] <= 49 and max_possible <= 49:
-        return 1
-    elif 50 <= row['PCIAT-PCIAT_Total'] <= 79 and max_possible <= 79:
-        return 2
-    elif row['PCIAT-PCIAT_Total'] >= 80 and max_possible >= 80:
-        return 3
-    return np.nan
-
-# Apply the function to recalculate sii
-train['recalc_sii'] = train.apply(recalculate_sii, axis=1)
-```
-
 Verification of rows with different original and recalculated SII:
-
-
-```python
-mismatch_rows = train[
-    (train['recalc_sii'] != train['sii']) & train['sii'].notna()
-]
-
-mismatch_rows[PCIAT_cols + [
-    'PCIAT-PCIAT_Total', 'sii', 'recalc_sii'
-]].style.applymap(
-    lambda x: 'background-color: #3366cc' if pd.isna(x) else ''
-)
-```
-
 
 
 
@@ -1180,33 +1075,6 @@ For now, we can conclude that the SII score is sometimes incorrect.
 Also, all columns have a substantial proportion of missing values, except id and the three basic demographic columns for sex, age and season of enrollment. Even the target sii has missing values:
 
 
-```python
-### Plot distribution of the target variable
-from matplotlib.ticker import PercentFormatter
-
-# Calculate the missing values count and ratio
-missing_count = (
-    train.isnull().sum()
-    .reset_index()
-    .rename(columns={0: 'null_count', 'index': 'feature'})
-    .sort_values(by='null_count', ascending=False)
-)
-missing_count['null_ratio'] = missing_count['null_count'] / len(train)
-
-# Plot the missing values
-plt.figure(figsize=(6, 15))
-plt.title('Missing values over the whole training dataset')
-plt.barh(np.arange(len(missing_count)), missing_count['null_ratio'], color='coral', label='missing')
-plt.barh(np.arange(len(missing_count)), 1 - missing_count['null_ratio'], left=missing_count['null_ratio'],
-         color='darkseagreen', label='available')
-plt.yticks(np.arange(len(missing_count)), missing_count['feature'])
-plt.gca().xaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
-plt.xlim(0, 1)
-plt.legend()
-plt.show()
-```
-
-
     
 ![png](Report_files/Report_26_0.png)
     
@@ -1217,35 +1085,6 @@ plt.show()
 The target variable sii is ordinal and imbalanced, with the majority of participants having a score of 0 (None) or 1 (Mild), 2 (Moderate) 14% and only 1.2% for 3 (Severe). This will heavily affect the model accuracy for minority class like 2 and 3
 
 The distribution is as follows:
-
-
-```python
-# Calculate the value counts and percentages
-sii_counts = train['sii'].value_counts().reset_index()
-sii_counts.columns = ['sii', 'count']
-total = sii_counts['count'].sum()
-sii_counts['percentage'] = (sii_counts['count'] / total) * 100
-
-# Create the plot
-fig, ax = plt.subplots(figsize=(14, 5))
-
-# Plot the bar chart
-sns.barplot(x='sii', y='count', data=sii_counts, palette='Blues_d', ax=ax)
-ax.set_title('Distribution of Severity Impairment Index (sii)', fontsize=14)
-
-# Annotate the bars with counts and percentages
-for p in ax.patches:
-    height = p.get_height()
-    percentage = sii_counts.loc[sii_counts['count'] == height, 'percentage'].values[0]
-    ax.text(
-        p.get_x() + p.get_width() / 2,
-        height + 5, f'{int(height)} ({percentage:.1f}%)',
-        ha="center", fontsize=12
-    )
-
-plt.show()
-```
-
 
     
 ![png](Report_files/Report_29_0.png)
@@ -1259,69 +1098,12 @@ The study participants are between 5 and 22 years old. There are twice as many b
 The four seasons of enrollment have similar frequencies
 
 
-```python
-fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-# Season of Enrollment
-season_counts = train['Basic_Demos-Enroll_Season'].value_counts(dropna=False)
-
-axes[0].pie(
-    season_counts, labels=season_counts.index,
-    autopct='%1.1f%%', startangle=90,
-    colors=sns.color_palette("Set3")
-)
-axes[0].set_title('Season of Enrollment')
-axes[0].axis('equal')
-
-# Age Distribution by Sex
-sns.histplot(
-    data=train, x='Basic_Demos-Age',
-    hue='Basic_Demos-Sex', multiple='dodge',
-    palette="Set2", bins=20, ax=axes[1]
-)
-axes[1].set_title('Age Distribution by Sex')
-axes[1].set_xlabel('Age')
-axes[1].set_ylabel('Count')
-
-plt.tight_layout()
-plt.show()
-```
-
-
     
 ![png](Report_files/Report_32_0.png)
     
 
 
 Boys have a slightly higher risk of internet addiction than girls
-
-
-```python
-# Define target_labels
-target_labels = ['None', 'Mild', 'Moderate', 'Severe']
-
-# Create the subplots
-fig, axs = plt.subplots(2, 1, sharex=True, sharey=True)
-
-# Loop through each sex (0 for boys, 1 for girls)
-for sex in range(2):
-    ax = axs.ravel()[sex]
-    vc = train[train['Basic_Demos-Sex'] == sex]['sii'].value_counts().sort_index()
-    ax.bar(vc.index,
-           vc.values / vc.values.sum(),
-           color=['lightblue', 'coral'][sex],
-           label=['boys', 'girls'][sex])
-    ax.set_xticks(np.arange(4))
-    ax.set_xticklabels(target_labels)
-    ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
-    ax.set_ylabel('count')
-    ax.legend()
-
-# Set the title and labels
-plt.suptitle('Target distribution')
-axs.ravel()[1].set_xlabel('Severity Impairment Index (sii)')
-plt.show()
-```
 
 
     
