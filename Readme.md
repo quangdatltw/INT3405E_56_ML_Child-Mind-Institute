@@ -1,0 +1,1453 @@
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+```
+
+
+```python
+warnings.filterwarnings('ignore', category=FutureWarning)
+
+sns.set(style="whitegrid")
+%matplotlib inline
+```
+
+# Understanding the problem
+
+The aim of this competition is to predict the Severity Impairment Index (sii), which measures the level of problematic internet use among children and adolescents, based on physical activity data and other features.
+
+sii is derived from `PCIAT-PCIAT_Total`, the sum of scores from the Parent-Child Internet Addiction Test (PCIAT: 20 questions, scored 0-5).
+
+Target Variable (sii) is defined as:
+- 0: None (PCIAT-PCIAT_Total from 0 to 30)
+- 1: Mild (PCIAT-PCIAT_Total from 31 to 49)
+- 2: Moderate (PCIAT-PCIAT_Total from 50 to 79)
+- 3: Severe (PCIAT-PCIAT_Total 80 and more)
+
+sii is an ordinal categorical variable with four levels.
+
+There are 3 popular approaches we can use:
+
+1. Ordinal classification (ordinal logistic regression, models with custom ordinal loss functions)
+2. Multiclass classification (treat sii as a nominal categorical variable without considering the order)
+3. Regression (ignore the discrete nature of categories and treat sii as a continuous variable, then round prediction)
+
+
+Also, another strategy involves predicting responses to each question of the Parent-Child Internet Addiction Test: i.e. pedict individual question scores as separate targets, sum the predicted scores to get the `PCIAT-PCIAT_Total` and map predictions to the corresponding sii category. But this method may seem a bit difficult for someone who has no knowledge of the related field
+
+
+# Explore Data
+
+
+```python
+train = pd.read_csv('res/train.csv')
+test = pd.read_csv('res/test.csv')
+data_dict = pd.read_csv('res/data_dictionary.csv')
+```
+
+### Train data
+
+
+```python
+display(train.head())
+print(f"Train shape: {train.shape}")
+```
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>Basic_Demos-Enroll_Season</th>
+      <th>Basic_Demos-Age</th>
+      <th>Basic_Demos-Sex</th>
+      <th>CGAS-Season</th>
+      <th>CGAS-CGAS_Score</th>
+      <th>Physical-Season</th>
+      <th>Physical-BMI</th>
+      <th>Physical-Height</th>
+      <th>Physical-Weight</th>
+      <th>...</th>
+      <th>PCIAT-PCIAT_18</th>
+      <th>PCIAT-PCIAT_19</th>
+      <th>PCIAT-PCIAT_20</th>
+      <th>PCIAT-PCIAT_Total</th>
+      <th>SDS-Season</th>
+      <th>SDS-SDS_Total_Raw</th>
+      <th>SDS-SDS_Total_T</th>
+      <th>PreInt_EduHx-Season</th>
+      <th>PreInt_EduHx-computerinternet_hoursday</th>
+      <th>sii</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>00008ff9</td>
+      <td>Fall</td>
+      <td>5</td>
+      <td>0</td>
+      <td>Winter</td>
+      <td>51.0</td>
+      <td>Fall</td>
+      <td>16.877316</td>
+      <td>46.0</td>
+      <td>50.8</td>
+      <td>...</td>
+      <td>4.0</td>
+      <td>2.0</td>
+      <td>4.0</td>
+      <td>55.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>Fall</td>
+      <td>3.0</td>
+      <td>2.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>000fd460</td>
+      <td>Summer</td>
+      <td>9</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>Fall</td>
+      <td>14.035590</td>
+      <td>48.0</td>
+      <td>46.0</td>
+      <td>...</td>
+      <td>0.0</td>
+      <td>0.0</td>
+      <td>0.0</td>
+      <td>0.0</td>
+      <td>Fall</td>
+      <td>46.0</td>
+      <td>64.0</td>
+      <td>Summer</td>
+      <td>0.0</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>00105258</td>
+      <td>Summer</td>
+      <td>10</td>
+      <td>1</td>
+      <td>Fall</td>
+      <td>71.0</td>
+      <td>Fall</td>
+      <td>16.648696</td>
+      <td>56.5</td>
+      <td>75.6</td>
+      <td>...</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>28.0</td>
+      <td>Fall</td>
+      <td>38.0</td>
+      <td>54.0</td>
+      <td>Summer</td>
+      <td>2.0</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>00115b9f</td>
+      <td>Winter</td>
+      <td>9</td>
+      <td>0</td>
+      <td>Fall</td>
+      <td>71.0</td>
+      <td>Summer</td>
+      <td>18.292347</td>
+      <td>56.0</td>
+      <td>81.6</td>
+      <td>...</td>
+      <td>3.0</td>
+      <td>4.0</td>
+      <td>1.0</td>
+      <td>44.0</td>
+      <td>Summer</td>
+      <td>31.0</td>
+      <td>45.0</td>
+      <td>Winter</td>
+      <td>0.0</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>0016bb22</td>
+      <td>Spring</td>
+      <td>18</td>
+      <td>1</td>
+      <td>Summer</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+  </tbody>
+</table>
+<p>5 rows × 82 columns</p>
+</div>
+
+
+    Train shape: (3960, 82)
+    
+
+### Test data
+
+
+```python
+display(test.head())
+print(f"Test shape: {test.shape}")
+```
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>Basic_Demos-Enroll_Season</th>
+      <th>Basic_Demos-Age</th>
+      <th>Basic_Demos-Sex</th>
+      <th>CGAS-Season</th>
+      <th>CGAS-CGAS_Score</th>
+      <th>Physical-Season</th>
+      <th>Physical-BMI</th>
+      <th>Physical-Height</th>
+      <th>Physical-Weight</th>
+      <th>...</th>
+      <th>BIA-BIA_TBW</th>
+      <th>PAQ_A-Season</th>
+      <th>PAQ_A-PAQ_A_Total</th>
+      <th>PAQ_C-Season</th>
+      <th>PAQ_C-PAQ_C_Total</th>
+      <th>SDS-Season</th>
+      <th>SDS-SDS_Total_Raw</th>
+      <th>SDS-SDS_Total_T</th>
+      <th>PreInt_EduHx-Season</th>
+      <th>PreInt_EduHx-computerinternet_hoursday</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>00008ff9</td>
+      <td>Fall</td>
+      <td>5</td>
+      <td>0</td>
+      <td>Winter</td>
+      <td>51.0</td>
+      <td>Fall</td>
+      <td>16.877316</td>
+      <td>46.0</td>
+      <td>50.8</td>
+      <td>...</td>
+      <td>32.6909</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>Fall</td>
+      <td>3.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>000fd460</td>
+      <td>Summer</td>
+      <td>9</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>Fall</td>
+      <td>14.035590</td>
+      <td>48.0</td>
+      <td>46.0</td>
+      <td>...</td>
+      <td>27.0552</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>Fall</td>
+      <td>2.340</td>
+      <td>Fall</td>
+      <td>46.0</td>
+      <td>64.0</td>
+      <td>Summer</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>00105258</td>
+      <td>Summer</td>
+      <td>10</td>
+      <td>1</td>
+      <td>Fall</td>
+      <td>71.0</td>
+      <td>Fall</td>
+      <td>16.648696</td>
+      <td>56.5</td>
+      <td>75.6</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>Summer</td>
+      <td>2.170</td>
+      <td>Fall</td>
+      <td>38.0</td>
+      <td>54.0</td>
+      <td>Summer</td>
+      <td>2.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>00115b9f</td>
+      <td>Winter</td>
+      <td>9</td>
+      <td>0</td>
+      <td>Fall</td>
+      <td>71.0</td>
+      <td>Summer</td>
+      <td>18.292347</td>
+      <td>56.0</td>
+      <td>81.6</td>
+      <td>...</td>
+      <td>45.9966</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>Winter</td>
+      <td>2.451</td>
+      <td>Summer</td>
+      <td>31.0</td>
+      <td>45.0</td>
+      <td>Winter</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>0016bb22</td>
+      <td>Spring</td>
+      <td>18</td>
+      <td>1</td>
+      <td>Summer</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>Summer</td>
+      <td>1.04</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+  </tbody>
+</table>
+<p>5 rows × 59 columns</p>
+</div>
+
+
+    Test shape: (20, 59)
+    
+
+### Data dictionary
+
+
+```python
+data_dict
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Instrument</th>
+      <th>Field</th>
+      <th>Description</th>
+      <th>Type</th>
+      <th>Values</th>
+      <th>Value Labels</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Identifier</td>
+      <td>id</td>
+      <td>Participant's ID</td>
+      <td>str</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Demographics</td>
+      <td>Basic_Demos-Enroll_Season</td>
+      <td>Season of enrollment</td>
+      <td>str</td>
+      <td>Spring, Summer, Fall, Winter</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Demographics</td>
+      <td>Basic_Demos-Age</td>
+      <td>Age of participant</td>
+      <td>float</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Demographics</td>
+      <td>Basic_Demos-Sex</td>
+      <td>Sex of participant</td>
+      <td>categorical int</td>
+      <td>0,1</td>
+      <td>0=Male, 1=Female</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>Children's Global Assessment Scale</td>
+      <td>CGAS-Season</td>
+      <td>Season of participation</td>
+      <td>str</td>
+      <td>Spring, Summer, Fall, Winter</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>76</th>
+      <td>Sleep Disturbance Scale</td>
+      <td>SDS-Season</td>
+      <td>Season of participation</td>
+      <td>str</td>
+      <td>Spring, Summer, Fall, Winter</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>77</th>
+      <td>Sleep Disturbance Scale</td>
+      <td>SDS-SDS_Total_Raw</td>
+      <td>Total Raw Score</td>
+      <td>int</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>78</th>
+      <td>Sleep Disturbance Scale</td>
+      <td>SDS-SDS_Total_T</td>
+      <td>Total T-Score</td>
+      <td>int</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>79</th>
+      <td>Internet Use</td>
+      <td>PreInt_EduHx-Season</td>
+      <td>Season of participation</td>
+      <td>str</td>
+      <td>Spring, Summer, Fall, Winter</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>80</th>
+      <td>Internet Use</td>
+      <td>PreInt_EduHx-computerinternet_hoursday</td>
+      <td>Hours of using computer/internet</td>
+      <td>categorical int</td>
+      <td>0,1,2,3</td>
+      <td>0=Less than 1h/day, 1=Around 1h/day, 2=Around ...</td>
+    </tr>
+  </tbody>
+</table>
+<p>81 rows × 6 columns</p>
+</div>
+
+
+
+# SII and PCIAT
+
+Let's identify the features that are related to the target variable and that are not present in the test set.
+
+**Parent-Child Internet Addiction Test (PCIAT):** contains 20 items (`PCIAT-PCIAT_01` to `PCIAT-PCIAT_20`), each assessing a different aspect of a child's behavior related to internet use. The items are answered on a scale (from 0 to 5), and the total score provides an indication of the severity of internet addiction.
+
+We have season of participation in `PCIAT-Season` and total Score in `PCIAT-PCIAT_Total`; so there are 22 PCIAT test-related columns in total.
+
+`PCIAT-PCIAT_Total` align with the corresponding sii categories, we will calculat its minimum and maximum scores for each sii category:
+
+
+```python
+pciat_min_max = train.groupby('sii')['PCIAT-PCIAT_Total'].agg(['min', 'max'])
+pciat_min_max = pciat_min_max.rename(
+    columns={'min': 'Minimum PCIAT total Score', 'max': 'Maximum total PCIAT Score'}
+)
+pciat_min_max
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Minimum PCIAT total Score</th>
+      <th>Maximum total PCIAT Score</th>
+    </tr>
+    <tr>
+      <th>sii</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0.0</th>
+      <td>0.0</td>
+      <td>30.0</td>
+    </tr>
+    <tr>
+      <th>1.0</th>
+      <td>31.0</td>
+      <td>49.0</td>
+    </tr>
+    <tr>
+      <th>2.0</th>
+      <td>50.0</td>
+      <td>79.0</td>
+    </tr>
+    <tr>
+      <th>3.0</th>
+      <td>80.0</td>
+      <td>93.0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+data_dict[data_dict['Field'] == 'PCIAT-PCIAT_Total']['Value Labels'].iloc[0]
+```
+
+
+
+
+    'Severity Impairment Index: 0-30=None; 31-49=Mild; 50-79=Moderate; 80-100=Severe'
+
+
+
+### Check missing answers
+
+Below We recalculate the SII based on `PCIAT_Total` and the maximum possible score if missing values were answered (5 points), ensuring that the recalculated SII meets the intended thresholds even with some missing answers.
+
+
+```python
+# Define PCIAT_cols as a list of relevant column names
+PCIAT_cols = [f'PCIAT-PCIAT_{i:02d}' for i in range(1, 21)]
+
+# Function to recalculate sii
+def recalculate_sii(row):
+    if pd.isna(row['PCIAT-PCIAT_Total']):
+        return np.nan
+    max_possible = row['PCIAT-PCIAT_Total'] + row[PCIAT_cols].isna().sum() * 5
+    if row['PCIAT-PCIAT_Total'] <= 30 and max_possible <= 30:
+        return 0
+    elif 31 <= row['PCIAT-PCIAT_Total'] <= 49 and max_possible <= 49:
+        return 1
+    elif 50 <= row['PCIAT-PCIAT_Total'] <= 79 and max_possible <= 79:
+        return 2
+    elif row['PCIAT-PCIAT_Total'] >= 80 and max_possible >= 80:
+        return 3
+    return np.nan
+
+# Apply the function to recalculate sii
+train['recalc_sii'] = train.apply(recalculate_sii, axis=1)
+```
+
+Verification of rows with different original and recalculated SII:
+
+
+```python
+mismatch_rows = train[
+    (train['recalc_sii'] != train['sii']) & train['sii'].notna()
+]
+
+mismatch_rows[PCIAT_cols + [
+    'PCIAT-PCIAT_Total', 'sii', 'recalc_sii'
+]].style.applymap(
+    lambda x: 'background-color: #3366cc' if pd.isna(x) else ''
+)
+```
+
+
+
+
+<style type="text/css">
+#T_8daf5_row0_col18, #T_8daf5_row0_col22, #T_8daf5_row1_col0, #T_8daf5_row1_col1, #T_8daf5_row1_col2, #T_8daf5_row1_col3, #T_8daf5_row1_col4, #T_8daf5_row1_col5, #T_8daf5_row1_col6, #T_8daf5_row1_col7, #T_8daf5_row1_col8, #T_8daf5_row1_col9, #T_8daf5_row1_col10, #T_8daf5_row1_col11, #T_8daf5_row1_col12, #T_8daf5_row1_col13, #T_8daf5_row1_col14, #T_8daf5_row1_col15, #T_8daf5_row1_col16, #T_8daf5_row1_col17, #T_8daf5_row1_col18, #T_8daf5_row1_col19, #T_8daf5_row1_col22, #T_8daf5_row2_col4, #T_8daf5_row2_col22, #T_8daf5_row3_col16, #T_8daf5_row3_col22, #T_8daf5_row4_col18, #T_8daf5_row4_col22, #T_8daf5_row5_col15, #T_8daf5_row5_col22, #T_8daf5_row6_col7, #T_8daf5_row6_col8, #T_8daf5_row6_col9, #T_8daf5_row6_col18, #T_8daf5_row6_col19, #T_8daf5_row6_col22, #T_8daf5_row7_col13, #T_8daf5_row7_col14, #T_8daf5_row7_col22, #T_8daf5_row8_col7, #T_8daf5_row8_col22, #T_8daf5_row9_col11, #T_8daf5_row9_col22, #T_8daf5_row10_col0, #T_8daf5_row10_col1, #T_8daf5_row10_col2, #T_8daf5_row10_col3, #T_8daf5_row10_col4, #T_8daf5_row10_col5, #T_8daf5_row10_col6, #T_8daf5_row10_col7, #T_8daf5_row10_col8, #T_8daf5_row10_col9, #T_8daf5_row10_col22, #T_8daf5_row11_col0, #T_8daf5_row11_col3, #T_8daf5_row11_col16, #T_8daf5_row11_col22, #T_8daf5_row12_col14, #T_8daf5_row12_col17, #T_8daf5_row12_col22, #T_8daf5_row13_col17, #T_8daf5_row13_col18, #T_8daf5_row13_col22, #T_8daf5_row14_col15, #T_8daf5_row14_col22, #T_8daf5_row15_col4, #T_8daf5_row15_col22, #T_8daf5_row16_col6, #T_8daf5_row16_col8, #T_8daf5_row16_col22 {
+  background-color: #3366cc;
+}
+</style>
+<table id="T_8daf5">
+  <thead>
+    <tr>
+      <th class="blank level0" >&nbsp;</th>
+      <th id="T_8daf5_level0_col0" class="col_heading level0 col0" >PCIAT-PCIAT_01</th>
+      <th id="T_8daf5_level0_col1" class="col_heading level0 col1" >PCIAT-PCIAT_02</th>
+      <th id="T_8daf5_level0_col2" class="col_heading level0 col2" >PCIAT-PCIAT_03</th>
+      <th id="T_8daf5_level0_col3" class="col_heading level0 col3" >PCIAT-PCIAT_04</th>
+      <th id="T_8daf5_level0_col4" class="col_heading level0 col4" >PCIAT-PCIAT_05</th>
+      <th id="T_8daf5_level0_col5" class="col_heading level0 col5" >PCIAT-PCIAT_06</th>
+      <th id="T_8daf5_level0_col6" class="col_heading level0 col6" >PCIAT-PCIAT_07</th>
+      <th id="T_8daf5_level0_col7" class="col_heading level0 col7" >PCIAT-PCIAT_08</th>
+      <th id="T_8daf5_level0_col8" class="col_heading level0 col8" >PCIAT-PCIAT_09</th>
+      <th id="T_8daf5_level0_col9" class="col_heading level0 col9" >PCIAT-PCIAT_10</th>
+      <th id="T_8daf5_level0_col10" class="col_heading level0 col10" >PCIAT-PCIAT_11</th>
+      <th id="T_8daf5_level0_col11" class="col_heading level0 col11" >PCIAT-PCIAT_12</th>
+      <th id="T_8daf5_level0_col12" class="col_heading level0 col12" >PCIAT-PCIAT_13</th>
+      <th id="T_8daf5_level0_col13" class="col_heading level0 col13" >PCIAT-PCIAT_14</th>
+      <th id="T_8daf5_level0_col14" class="col_heading level0 col14" >PCIAT-PCIAT_15</th>
+      <th id="T_8daf5_level0_col15" class="col_heading level0 col15" >PCIAT-PCIAT_16</th>
+      <th id="T_8daf5_level0_col16" class="col_heading level0 col16" >PCIAT-PCIAT_17</th>
+      <th id="T_8daf5_level0_col17" class="col_heading level0 col17" >PCIAT-PCIAT_18</th>
+      <th id="T_8daf5_level0_col18" class="col_heading level0 col18" >PCIAT-PCIAT_19</th>
+      <th id="T_8daf5_level0_col19" class="col_heading level0 col19" >PCIAT-PCIAT_20</th>
+      <th id="T_8daf5_level0_col20" class="col_heading level0 col20" >PCIAT-PCIAT_Total</th>
+      <th id="T_8daf5_level0_col21" class="col_heading level0 col21" >sii</th>
+      <th id="T_8daf5_level0_col22" class="col_heading level0 col22" >recalc_sii</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th id="T_8daf5_level0_row0" class="row_heading level0 row0" >24</th>
+      <td id="T_8daf5_row0_col0" class="data row0 col0" >2.000000</td>
+      <td id="T_8daf5_row0_col1" class="data row0 col1" >2.000000</td>
+      <td id="T_8daf5_row0_col2" class="data row0 col2" >3.000000</td>
+      <td id="T_8daf5_row0_col3" class="data row0 col3" >1.000000</td>
+      <td id="T_8daf5_row0_col4" class="data row0 col4" >2.000000</td>
+      <td id="T_8daf5_row0_col5" class="data row0 col5" >1.000000</td>
+      <td id="T_8daf5_row0_col6" class="data row0 col6" >1.000000</td>
+      <td id="T_8daf5_row0_col7" class="data row0 col7" >1.000000</td>
+      <td id="T_8daf5_row0_col8" class="data row0 col8" >2.000000</td>
+      <td id="T_8daf5_row0_col9" class="data row0 col9" >1.000000</td>
+      <td id="T_8daf5_row0_col10" class="data row0 col10" >2.000000</td>
+      <td id="T_8daf5_row0_col11" class="data row0 col11" >1.000000</td>
+      <td id="T_8daf5_row0_col12" class="data row0 col12" >2.000000</td>
+      <td id="T_8daf5_row0_col13" class="data row0 col13" >1.000000</td>
+      <td id="T_8daf5_row0_col14" class="data row0 col14" >1.000000</td>
+      <td id="T_8daf5_row0_col15" class="data row0 col15" >2.000000</td>
+      <td id="T_8daf5_row0_col16" class="data row0 col16" >1.000000</td>
+      <td id="T_8daf5_row0_col17" class="data row0 col17" >2.000000</td>
+      <td id="T_8daf5_row0_col18" class="data row0 col18" >nan</td>
+      <td id="T_8daf5_row0_col19" class="data row0 col19" >2.000000</td>
+      <td id="T_8daf5_row0_col20" class="data row0 col20" >30.000000</td>
+      <td id="T_8daf5_row0_col21" class="data row0 col21" >0.000000</td>
+      <td id="T_8daf5_row0_col22" class="data row0 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row1" class="row_heading level0 row1" >93</th>
+      <td id="T_8daf5_row1_col0" class="data row1 col0" >nan</td>
+      <td id="T_8daf5_row1_col1" class="data row1 col1" >nan</td>
+      <td id="T_8daf5_row1_col2" class="data row1 col2" >nan</td>
+      <td id="T_8daf5_row1_col3" class="data row1 col3" >nan</td>
+      <td id="T_8daf5_row1_col4" class="data row1 col4" >nan</td>
+      <td id="T_8daf5_row1_col5" class="data row1 col5" >nan</td>
+      <td id="T_8daf5_row1_col6" class="data row1 col6" >nan</td>
+      <td id="T_8daf5_row1_col7" class="data row1 col7" >nan</td>
+      <td id="T_8daf5_row1_col8" class="data row1 col8" >nan</td>
+      <td id="T_8daf5_row1_col9" class="data row1 col9" >nan</td>
+      <td id="T_8daf5_row1_col10" class="data row1 col10" >nan</td>
+      <td id="T_8daf5_row1_col11" class="data row1 col11" >nan</td>
+      <td id="T_8daf5_row1_col12" class="data row1 col12" >nan</td>
+      <td id="T_8daf5_row1_col13" class="data row1 col13" >nan</td>
+      <td id="T_8daf5_row1_col14" class="data row1 col14" >nan</td>
+      <td id="T_8daf5_row1_col15" class="data row1 col15" >nan</td>
+      <td id="T_8daf5_row1_col16" class="data row1 col16" >nan</td>
+      <td id="T_8daf5_row1_col17" class="data row1 col17" >nan</td>
+      <td id="T_8daf5_row1_col18" class="data row1 col18" >nan</td>
+      <td id="T_8daf5_row1_col19" class="data row1 col19" >nan</td>
+      <td id="T_8daf5_row1_col20" class="data row1 col20" >0.000000</td>
+      <td id="T_8daf5_row1_col21" class="data row1 col21" >0.000000</td>
+      <td id="T_8daf5_row1_col22" class="data row1 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row2" class="row_heading level0 row2" >104</th>
+      <td id="T_8daf5_row2_col0" class="data row2 col0" >5.000000</td>
+      <td id="T_8daf5_row2_col1" class="data row2 col1" >2.000000</td>
+      <td id="T_8daf5_row2_col2" class="data row2 col2" >4.000000</td>
+      <td id="T_8daf5_row2_col3" class="data row2 col3" >2.000000</td>
+      <td id="T_8daf5_row2_col4" class="data row2 col4" >nan</td>
+      <td id="T_8daf5_row2_col5" class="data row2 col5" >2.000000</td>
+      <td id="T_8daf5_row2_col6" class="data row2 col6" >2.000000</td>
+      <td id="T_8daf5_row2_col7" class="data row2 col7" >2.000000</td>
+      <td id="T_8daf5_row2_col8" class="data row2 col8" >1.000000</td>
+      <td id="T_8daf5_row2_col9" class="data row2 col9" >2.000000</td>
+      <td id="T_8daf5_row2_col10" class="data row2 col10" >1.000000</td>
+      <td id="T_8daf5_row2_col11" class="data row2 col11" >1.000000</td>
+      <td id="T_8daf5_row2_col12" class="data row2 col12" >2.000000</td>
+      <td id="T_8daf5_row2_col13" class="data row2 col13" >2.000000</td>
+      <td id="T_8daf5_row2_col14" class="data row2 col14" >3.000000</td>
+      <td id="T_8daf5_row2_col15" class="data row2 col15" >3.000000</td>
+      <td id="T_8daf5_row2_col16" class="data row2 col16" >3.000000</td>
+      <td id="T_8daf5_row2_col17" class="data row2 col17" >3.000000</td>
+      <td id="T_8daf5_row2_col18" class="data row2 col18" >3.000000</td>
+      <td id="T_8daf5_row2_col19" class="data row2 col19" >2.000000</td>
+      <td id="T_8daf5_row2_col20" class="data row2 col20" >45.000000</td>
+      <td id="T_8daf5_row2_col21" class="data row2 col21" >1.000000</td>
+      <td id="T_8daf5_row2_col22" class="data row2 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row3" class="row_heading level0 row3" >141</th>
+      <td id="T_8daf5_row3_col0" class="data row3 col0" >1.000000</td>
+      <td id="T_8daf5_row3_col1" class="data row3 col1" >2.000000</td>
+      <td id="T_8daf5_row3_col2" class="data row3 col2" >4.000000</td>
+      <td id="T_8daf5_row3_col3" class="data row3 col3" >2.000000</td>
+      <td id="T_8daf5_row3_col4" class="data row3 col4" >2.000000</td>
+      <td id="T_8daf5_row3_col5" class="data row3 col5" >2.000000</td>
+      <td id="T_8daf5_row3_col6" class="data row3 col6" >1.000000</td>
+      <td id="T_8daf5_row3_col7" class="data row3 col7" >3.000000</td>
+      <td id="T_8daf5_row3_col8" class="data row3 col8" >1.000000</td>
+      <td id="T_8daf5_row3_col9" class="data row3 col9" >1.000000</td>
+      <td id="T_8daf5_row3_col10" class="data row3 col10" >2.000000</td>
+      <td id="T_8daf5_row3_col11" class="data row3 col11" >0.000000</td>
+      <td id="T_8daf5_row3_col12" class="data row3 col12" >0.000000</td>
+      <td id="T_8daf5_row3_col13" class="data row3 col13" >0.000000</td>
+      <td id="T_8daf5_row3_col14" class="data row3 col14" >3.000000</td>
+      <td id="T_8daf5_row3_col15" class="data row3 col15" >0.000000</td>
+      <td id="T_8daf5_row3_col16" class="data row3 col16" >nan</td>
+      <td id="T_8daf5_row3_col17" class="data row3 col17" >0.000000</td>
+      <td id="T_8daf5_row3_col18" class="data row3 col18" >2.000000</td>
+      <td id="T_8daf5_row3_col19" class="data row3 col19" >0.000000</td>
+      <td id="T_8daf5_row3_col20" class="data row3 col20" >26.000000</td>
+      <td id="T_8daf5_row3_col21" class="data row3 col21" >0.000000</td>
+      <td id="T_8daf5_row3_col22" class="data row3 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row4" class="row_heading level0 row4" >142</th>
+      <td id="T_8daf5_row4_col0" class="data row4 col0" >2.000000</td>
+      <td id="T_8daf5_row4_col1" class="data row4 col1" >2.000000</td>
+      <td id="T_8daf5_row4_col2" class="data row4 col2" >2.000000</td>
+      <td id="T_8daf5_row4_col3" class="data row4 col3" >1.000000</td>
+      <td id="T_8daf5_row4_col4" class="data row4 col4" >2.000000</td>
+      <td id="T_8daf5_row4_col5" class="data row4 col5" >1.000000</td>
+      <td id="T_8daf5_row4_col6" class="data row4 col6" >2.000000</td>
+      <td id="T_8daf5_row4_col7" class="data row4 col7" >1.000000</td>
+      <td id="T_8daf5_row4_col8" class="data row4 col8" >1.000000</td>
+      <td id="T_8daf5_row4_col9" class="data row4 col9" >1.000000</td>
+      <td id="T_8daf5_row4_col10" class="data row4 col10" >3.000000</td>
+      <td id="T_8daf5_row4_col11" class="data row4 col11" >0.000000</td>
+      <td id="T_8daf5_row4_col12" class="data row4 col12" >2.000000</td>
+      <td id="T_8daf5_row4_col13" class="data row4 col13" >1.000000</td>
+      <td id="T_8daf5_row4_col14" class="data row4 col14" >1.000000</td>
+      <td id="T_8daf5_row4_col15" class="data row4 col15" >1.000000</td>
+      <td id="T_8daf5_row4_col16" class="data row4 col16" >1.000000</td>
+      <td id="T_8daf5_row4_col17" class="data row4 col17" >1.000000</td>
+      <td id="T_8daf5_row4_col18" class="data row4 col18" >nan</td>
+      <td id="T_8daf5_row4_col19" class="data row4 col19" >1.000000</td>
+      <td id="T_8daf5_row4_col20" class="data row4 col20" >26.000000</td>
+      <td id="T_8daf5_row4_col21" class="data row4 col21" >0.000000</td>
+      <td id="T_8daf5_row4_col22" class="data row4 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row5" class="row_heading level0 row5" >270</th>
+      <td id="T_8daf5_row5_col0" class="data row5 col0" >3.000000</td>
+      <td id="T_8daf5_row5_col1" class="data row5 col1" >3.000000</td>
+      <td id="T_8daf5_row5_col2" class="data row5 col2" >4.000000</td>
+      <td id="T_8daf5_row5_col3" class="data row5 col3" >2.000000</td>
+      <td id="T_8daf5_row5_col4" class="data row5 col4" >4.000000</td>
+      <td id="T_8daf5_row5_col5" class="data row5 col5" >2.000000</td>
+      <td id="T_8daf5_row5_col6" class="data row5 col6" >1.000000</td>
+      <td id="T_8daf5_row5_col7" class="data row5 col7" >3.000000</td>
+      <td id="T_8daf5_row5_col8" class="data row5 col8" >2.000000</td>
+      <td id="T_8daf5_row5_col9" class="data row5 col9" >2.000000</td>
+      <td id="T_8daf5_row5_col10" class="data row5 col10" >4.000000</td>
+      <td id="T_8daf5_row5_col11" class="data row5 col11" >0.000000</td>
+      <td id="T_8daf5_row5_col12" class="data row5 col12" >2.000000</td>
+      <td id="T_8daf5_row5_col13" class="data row5 col13" >1.000000</td>
+      <td id="T_8daf5_row5_col14" class="data row5 col14" >4.000000</td>
+      <td id="T_8daf5_row5_col15" class="data row5 col15" >nan</td>
+      <td id="T_8daf5_row5_col16" class="data row5 col16" >2.000000</td>
+      <td id="T_8daf5_row5_col17" class="data row5 col17" >3.000000</td>
+      <td id="T_8daf5_row5_col18" class="data row5 col18" >4.000000</td>
+      <td id="T_8daf5_row5_col19" class="data row5 col19" >2.000000</td>
+      <td id="T_8daf5_row5_col20" class="data row5 col20" >48.000000</td>
+      <td id="T_8daf5_row5_col21" class="data row5 col21" >1.000000</td>
+      <td id="T_8daf5_row5_col22" class="data row5 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row6" class="row_heading level0 row6" >368</th>
+      <td id="T_8daf5_row6_col0" class="data row6 col0" >2.000000</td>
+      <td id="T_8daf5_row6_col1" class="data row6 col1" >3.000000</td>
+      <td id="T_8daf5_row6_col2" class="data row6 col2" >4.000000</td>
+      <td id="T_8daf5_row6_col3" class="data row6 col3" >2.000000</td>
+      <td id="T_8daf5_row6_col4" class="data row6 col4" >5.000000</td>
+      <td id="T_8daf5_row6_col5" class="data row6 col5" >1.000000</td>
+      <td id="T_8daf5_row6_col6" class="data row6 col6" >2.000000</td>
+      <td id="T_8daf5_row6_col7" class="data row6 col7" >nan</td>
+      <td id="T_8daf5_row6_col8" class="data row6 col8" >nan</td>
+      <td id="T_8daf5_row6_col9" class="data row6 col9" >nan</td>
+      <td id="T_8daf5_row6_col10" class="data row6 col10" >2.000000</td>
+      <td id="T_8daf5_row6_col11" class="data row6 col11" >1.000000</td>
+      <td id="T_8daf5_row6_col12" class="data row6 col12" >1.000000</td>
+      <td id="T_8daf5_row6_col13" class="data row6 col13" >2.000000</td>
+      <td id="T_8daf5_row6_col14" class="data row6 col14" >2.000000</td>
+      <td id="T_8daf5_row6_col15" class="data row6 col15" >1.000000</td>
+      <td id="T_8daf5_row6_col16" class="data row6 col16" >2.000000</td>
+      <td id="T_8daf5_row6_col17" class="data row6 col17" >1.000000</td>
+      <td id="T_8daf5_row6_col18" class="data row6 col18" >nan</td>
+      <td id="T_8daf5_row6_col19" class="data row6 col19" >nan</td>
+      <td id="T_8daf5_row6_col20" class="data row6 col20" >31.000000</td>
+      <td id="T_8daf5_row6_col21" class="data row6 col21" >1.000000</td>
+      <td id="T_8daf5_row6_col22" class="data row6 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row7" class="row_heading level0 row7" >592</th>
+      <td id="T_8daf5_row7_col0" class="data row7 col0" >3.000000</td>
+      <td id="T_8daf5_row7_col1" class="data row7 col1" >0.000000</td>
+      <td id="T_8daf5_row7_col2" class="data row7 col2" >3.000000</td>
+      <td id="T_8daf5_row7_col3" class="data row7 col3" >0.000000</td>
+      <td id="T_8daf5_row7_col4" class="data row7 col4" >3.000000</td>
+      <td id="T_8daf5_row7_col5" class="data row7 col5" >1.000000</td>
+      <td id="T_8daf5_row7_col6" class="data row7 col6" >0.000000</td>
+      <td id="T_8daf5_row7_col7" class="data row7 col7" >1.000000</td>
+      <td id="T_8daf5_row7_col8" class="data row7 col8" >1.000000</td>
+      <td id="T_8daf5_row7_col9" class="data row7 col9" >1.000000</td>
+      <td id="T_8daf5_row7_col10" class="data row7 col10" >2.000000</td>
+      <td id="T_8daf5_row7_col11" class="data row7 col11" >0.000000</td>
+      <td id="T_8daf5_row7_col12" class="data row7 col12" >1.000000</td>
+      <td id="T_8daf5_row7_col13" class="data row7 col13" >nan</td>
+      <td id="T_8daf5_row7_col14" class="data row7 col14" >nan</td>
+      <td id="T_8daf5_row7_col15" class="data row7 col15" >1.000000</td>
+      <td id="T_8daf5_row7_col16" class="data row7 col16" >2.000000</td>
+      <td id="T_8daf5_row7_col17" class="data row7 col17" >1.000000</td>
+      <td id="T_8daf5_row7_col18" class="data row7 col18" >1.000000</td>
+      <td id="T_8daf5_row7_col19" class="data row7 col19" >0.000000</td>
+      <td id="T_8daf5_row7_col20" class="data row7 col20" >21.000000</td>
+      <td id="T_8daf5_row7_col21" class="data row7 col21" >0.000000</td>
+      <td id="T_8daf5_row7_col22" class="data row7 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row8" class="row_heading level0 row8" >724</th>
+      <td id="T_8daf5_row8_col0" class="data row8 col0" >3.000000</td>
+      <td id="T_8daf5_row8_col1" class="data row8 col1" >2.000000</td>
+      <td id="T_8daf5_row8_col2" class="data row8 col2" >4.000000</td>
+      <td id="T_8daf5_row8_col3" class="data row8 col3" >2.000000</td>
+      <td id="T_8daf5_row8_col4" class="data row8 col4" >2.000000</td>
+      <td id="T_8daf5_row8_col5" class="data row8 col5" >1.000000</td>
+      <td id="T_8daf5_row8_col6" class="data row8 col6" >0.000000</td>
+      <td id="T_8daf5_row8_col7" class="data row8 col7" >nan</td>
+      <td id="T_8daf5_row8_col8" class="data row8 col8" >1.000000</td>
+      <td id="T_8daf5_row8_col9" class="data row8 col9" >1.000000</td>
+      <td id="T_8daf5_row8_col10" class="data row8 col10" >1.000000</td>
+      <td id="T_8daf5_row8_col11" class="data row8 col11" >1.000000</td>
+      <td id="T_8daf5_row8_col12" class="data row8 col12" >2.000000</td>
+      <td id="T_8daf5_row8_col13" class="data row8 col13" >1.000000</td>
+      <td id="T_8daf5_row8_col14" class="data row8 col14" >2.000000</td>
+      <td id="T_8daf5_row8_col15" class="data row8 col15" >1.000000</td>
+      <td id="T_8daf5_row8_col16" class="data row8 col16" >1.000000</td>
+      <td id="T_8daf5_row8_col17" class="data row8 col17" >3.000000</td>
+      <td id="T_8daf5_row8_col18" class="data row8 col18" >0.000000</td>
+      <td id="T_8daf5_row8_col19" class="data row8 col19" >1.000000</td>
+      <td id="T_8daf5_row8_col20" class="data row8 col20" >29.000000</td>
+      <td id="T_8daf5_row8_col21" class="data row8 col21" >0.000000</td>
+      <td id="T_8daf5_row8_col22" class="data row8 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row9" class="row_heading level0 row9" >877</th>
+      <td id="T_8daf5_row9_col0" class="data row9 col0" >5.000000</td>
+      <td id="T_8daf5_row9_col1" class="data row9 col1" >5.000000</td>
+      <td id="T_8daf5_row9_col2" class="data row9 col2" >5.000000</td>
+      <td id="T_8daf5_row9_col3" class="data row9 col3" >4.000000</td>
+      <td id="T_8daf5_row9_col4" class="data row9 col4" >5.000000</td>
+      <td id="T_8daf5_row9_col5" class="data row9 col5" >0.000000</td>
+      <td id="T_8daf5_row9_col6" class="data row9 col6" >5.000000</td>
+      <td id="T_8daf5_row9_col7" class="data row9 col7" >5.000000</td>
+      <td id="T_8daf5_row9_col8" class="data row9 col8" >5.000000</td>
+      <td id="T_8daf5_row9_col9" class="data row9 col9" >5.000000</td>
+      <td id="T_8daf5_row9_col10" class="data row9 col10" >4.000000</td>
+      <td id="T_8daf5_row9_col11" class="data row9 col11" >nan</td>
+      <td id="T_8daf5_row9_col12" class="data row9 col12" >4.000000</td>
+      <td id="T_8daf5_row9_col13" class="data row9 col13" >5.000000</td>
+      <td id="T_8daf5_row9_col14" class="data row9 col14" >5.000000</td>
+      <td id="T_8daf5_row9_col15" class="data row9 col15" >1.000000</td>
+      <td id="T_8daf5_row9_col16" class="data row9 col16" >5.000000</td>
+      <td id="T_8daf5_row9_col17" class="data row9 col17" >0.000000</td>
+      <td id="T_8daf5_row9_col18" class="data row9 col18" >5.000000</td>
+      <td id="T_8daf5_row9_col19" class="data row9 col19" >5.000000</td>
+      <td id="T_8daf5_row9_col20" class="data row9 col20" >78.000000</td>
+      <td id="T_8daf5_row9_col21" class="data row9 col21" >2.000000</td>
+      <td id="T_8daf5_row9_col22" class="data row9 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row10" class="row_heading level0 row10" >1706</th>
+      <td id="T_8daf5_row10_col0" class="data row10 col0" >nan</td>
+      <td id="T_8daf5_row10_col1" class="data row10 col1" >nan</td>
+      <td id="T_8daf5_row10_col2" class="data row10 col2" >nan</td>
+      <td id="T_8daf5_row10_col3" class="data row10 col3" >nan</td>
+      <td id="T_8daf5_row10_col4" class="data row10 col4" >nan</td>
+      <td id="T_8daf5_row10_col5" class="data row10 col5" >nan</td>
+      <td id="T_8daf5_row10_col6" class="data row10 col6" >nan</td>
+      <td id="T_8daf5_row10_col7" class="data row10 col7" >nan</td>
+      <td id="T_8daf5_row10_col8" class="data row10 col8" >nan</td>
+      <td id="T_8daf5_row10_col9" class="data row10 col9" >nan</td>
+      <td id="T_8daf5_row10_col10" class="data row10 col10" >0.000000</td>
+      <td id="T_8daf5_row10_col11" class="data row10 col11" >0.000000</td>
+      <td id="T_8daf5_row10_col12" class="data row10 col12" >0.000000</td>
+      <td id="T_8daf5_row10_col13" class="data row10 col13" >0.000000</td>
+      <td id="T_8daf5_row10_col14" class="data row10 col14" >0.000000</td>
+      <td id="T_8daf5_row10_col15" class="data row10 col15" >0.000000</td>
+      <td id="T_8daf5_row10_col16" class="data row10 col16" >0.000000</td>
+      <td id="T_8daf5_row10_col17" class="data row10 col17" >0.000000</td>
+      <td id="T_8daf5_row10_col18" class="data row10 col18" >0.000000</td>
+      <td id="T_8daf5_row10_col19" class="data row10 col19" >0.000000</td>
+      <td id="T_8daf5_row10_col20" class="data row10 col20" >0.000000</td>
+      <td id="T_8daf5_row10_col21" class="data row10 col21" >0.000000</td>
+      <td id="T_8daf5_row10_col22" class="data row10 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row11" class="row_heading level0 row11" >1911</th>
+      <td id="T_8daf5_row11_col0" class="data row11 col0" >nan</td>
+      <td id="T_8daf5_row11_col1" class="data row11 col1" >5.000000</td>
+      <td id="T_8daf5_row11_col2" class="data row11 col2" >5.000000</td>
+      <td id="T_8daf5_row11_col3" class="data row11 col3" >nan</td>
+      <td id="T_8daf5_row11_col4" class="data row11 col4" >3.000000</td>
+      <td id="T_8daf5_row11_col5" class="data row11 col5" >4.000000</td>
+      <td id="T_8daf5_row11_col6" class="data row11 col6" >0.000000</td>
+      <td id="T_8daf5_row11_col7" class="data row11 col7" >1.000000</td>
+      <td id="T_8daf5_row11_col8" class="data row11 col8" >5.000000</td>
+      <td id="T_8daf5_row11_col9" class="data row11 col9" >0.000000</td>
+      <td id="T_8daf5_row11_col10" class="data row11 col10" >4.000000</td>
+      <td id="T_8daf5_row11_col11" class="data row11 col11" >0.000000</td>
+      <td id="T_8daf5_row11_col12" class="data row11 col12" >0.000000</td>
+      <td id="T_8daf5_row11_col13" class="data row11 col13" >0.000000</td>
+      <td id="T_8daf5_row11_col14" class="data row11 col14" >5.000000</td>
+      <td id="T_8daf5_row11_col15" class="data row11 col15" >3.000000</td>
+      <td id="T_8daf5_row11_col16" class="data row11 col16" >nan</td>
+      <td id="T_8daf5_row11_col17" class="data row11 col17" >3.000000</td>
+      <td id="T_8daf5_row11_col18" class="data row11 col18" >0.000000</td>
+      <td id="T_8daf5_row11_col19" class="data row11 col19" >0.000000</td>
+      <td id="T_8daf5_row11_col20" class="data row11 col20" >38.000000</td>
+      <td id="T_8daf5_row11_col21" class="data row11 col21" >1.000000</td>
+      <td id="T_8daf5_row11_col22" class="data row11 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row12" class="row_heading level0 row12" >2285</th>
+      <td id="T_8daf5_row12_col0" class="data row12 col0" >2.000000</td>
+      <td id="T_8daf5_row12_col1" class="data row12 col1" >2.000000</td>
+      <td id="T_8daf5_row12_col2" class="data row12 col2" >2.000000</td>
+      <td id="T_8daf5_row12_col3" class="data row12 col3" >1.000000</td>
+      <td id="T_8daf5_row12_col4" class="data row12 col4" >2.000000</td>
+      <td id="T_8daf5_row12_col5" class="data row12 col5" >1.000000</td>
+      <td id="T_8daf5_row12_col6" class="data row12 col6" >0.000000</td>
+      <td id="T_8daf5_row12_col7" class="data row12 col7" >2.000000</td>
+      <td id="T_8daf5_row12_col8" class="data row12 col8" >2.000000</td>
+      <td id="T_8daf5_row12_col9" class="data row12 col9" >2.000000</td>
+      <td id="T_8daf5_row12_col10" class="data row12 col10" >2.000000</td>
+      <td id="T_8daf5_row12_col11" class="data row12 col11" >0.000000</td>
+      <td id="T_8daf5_row12_col12" class="data row12 col12" >2.000000</td>
+      <td id="T_8daf5_row12_col13" class="data row12 col13" >2.000000</td>
+      <td id="T_8daf5_row12_col14" class="data row12 col14" >nan</td>
+      <td id="T_8daf5_row12_col15" class="data row12 col15" >1.000000</td>
+      <td id="T_8daf5_row12_col16" class="data row12 col16" >2.000000</td>
+      <td id="T_8daf5_row12_col17" class="data row12 col17" >nan</td>
+      <td id="T_8daf5_row12_col18" class="data row12 col18" >1.000000</td>
+      <td id="T_8daf5_row12_col19" class="data row12 col19" >1.000000</td>
+      <td id="T_8daf5_row12_col20" class="data row12 col20" >27.000000</td>
+      <td id="T_8daf5_row12_col21" class="data row12 col21" >0.000000</td>
+      <td id="T_8daf5_row12_col22" class="data row12 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row13" class="row_heading level0 row13" >3037</th>
+      <td id="T_8daf5_row13_col0" class="data row13 col0" >3.000000</td>
+      <td id="T_8daf5_row13_col1" class="data row13 col1" >4.000000</td>
+      <td id="T_8daf5_row13_col2" class="data row13 col2" >4.000000</td>
+      <td id="T_8daf5_row13_col3" class="data row13 col3" >0.000000</td>
+      <td id="T_8daf5_row13_col4" class="data row13 col4" >4.000000</td>
+      <td id="T_8daf5_row13_col5" class="data row13 col5" >0.000000</td>
+      <td id="T_8daf5_row13_col6" class="data row13 col6" >0.000000</td>
+      <td id="T_8daf5_row13_col7" class="data row13 col7" >4.000000</td>
+      <td id="T_8daf5_row13_col8" class="data row13 col8" >2.000000</td>
+      <td id="T_8daf5_row13_col9" class="data row13 col9" >2.000000</td>
+      <td id="T_8daf5_row13_col10" class="data row13 col10" >4.000000</td>
+      <td id="T_8daf5_row13_col11" class="data row13 col11" >0.000000</td>
+      <td id="T_8daf5_row13_col12" class="data row13 col12" >4.000000</td>
+      <td id="T_8daf5_row13_col13" class="data row13 col13" >1.000000</td>
+      <td id="T_8daf5_row13_col14" class="data row13 col14" >4.000000</td>
+      <td id="T_8daf5_row13_col15" class="data row13 col15" >4.000000</td>
+      <td id="T_8daf5_row13_col16" class="data row13 col16" >4.000000</td>
+      <td id="T_8daf5_row13_col17" class="data row13 col17" >nan</td>
+      <td id="T_8daf5_row13_col18" class="data row13 col18" >nan</td>
+      <td id="T_8daf5_row13_col19" class="data row13 col19" >1.000000</td>
+      <td id="T_8daf5_row13_col20" class="data row13 col20" >45.000000</td>
+      <td id="T_8daf5_row13_col21" class="data row13 col21" >1.000000</td>
+      <td id="T_8daf5_row13_col22" class="data row13 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row14" class="row_heading level0 row14" >3500</th>
+      <td id="T_8daf5_row14_col0" class="data row14 col0" >3.000000</td>
+      <td id="T_8daf5_row14_col1" class="data row14 col1" >3.000000</td>
+      <td id="T_8daf5_row14_col2" class="data row14 col2" >2.000000</td>
+      <td id="T_8daf5_row14_col3" class="data row14 col3" >3.000000</td>
+      <td id="T_8daf5_row14_col4" class="data row14 col4" >4.000000</td>
+      <td id="T_8daf5_row14_col5" class="data row14 col5" >4.000000</td>
+      <td id="T_8daf5_row14_col6" class="data row14 col6" >4.000000</td>
+      <td id="T_8daf5_row14_col7" class="data row14 col7" >2.000000</td>
+      <td id="T_8daf5_row14_col8" class="data row14 col8" >3.000000</td>
+      <td id="T_8daf5_row14_col9" class="data row14 col9" >3.000000</td>
+      <td id="T_8daf5_row14_col10" class="data row14 col10" >2.000000</td>
+      <td id="T_8daf5_row14_col11" class="data row14 col11" >1.000000</td>
+      <td id="T_8daf5_row14_col12" class="data row14 col12" >2.000000</td>
+      <td id="T_8daf5_row14_col13" class="data row14 col13" >2.000000</td>
+      <td id="T_8daf5_row14_col14" class="data row14 col14" >2.000000</td>
+      <td id="T_8daf5_row14_col15" class="data row14 col15" >nan</td>
+      <td id="T_8daf5_row14_col16" class="data row14 col16" >2.000000</td>
+      <td id="T_8daf5_row14_col17" class="data row14 col17" >2.000000</td>
+      <td id="T_8daf5_row14_col18" class="data row14 col18" >2.000000</td>
+      <td id="T_8daf5_row14_col19" class="data row14 col19" >1.000000</td>
+      <td id="T_8daf5_row14_col20" class="data row14 col20" >47.000000</td>
+      <td id="T_8daf5_row14_col21" class="data row14 col21" >1.000000</td>
+      <td id="T_8daf5_row14_col22" class="data row14 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row15" class="row_heading level0 row15" >3672</th>
+      <td id="T_8daf5_row15_col0" class="data row15 col0" >5.000000</td>
+      <td id="T_8daf5_row15_col1" class="data row15 col1" >5.000000</td>
+      <td id="T_8daf5_row15_col2" class="data row15 col2" >1.000000</td>
+      <td id="T_8daf5_row15_col3" class="data row15 col3" >0.000000</td>
+      <td id="T_8daf5_row15_col4" class="data row15 col4" >nan</td>
+      <td id="T_8daf5_row15_col5" class="data row15 col5" >1.000000</td>
+      <td id="T_8daf5_row15_col6" class="data row15 col6" >0.000000</td>
+      <td id="T_8daf5_row15_col7" class="data row15 col7" >0.000000</td>
+      <td id="T_8daf5_row15_col8" class="data row15 col8" >0.000000</td>
+      <td id="T_8daf5_row15_col9" class="data row15 col9" >0.000000</td>
+      <td id="T_8daf5_row15_col10" class="data row15 col10" >5.000000</td>
+      <td id="T_8daf5_row15_col11" class="data row15 col11" >0.000000</td>
+      <td id="T_8daf5_row15_col12" class="data row15 col12" >5.000000</td>
+      <td id="T_8daf5_row15_col13" class="data row15 col13" >1.000000</td>
+      <td id="T_8daf5_row15_col14" class="data row15 col14" >5.000000</td>
+      <td id="T_8daf5_row15_col15" class="data row15 col15" >5.000000</td>
+      <td id="T_8daf5_row15_col16" class="data row15 col16" >3.000000</td>
+      <td id="T_8daf5_row15_col17" class="data row15 col17" >5.000000</td>
+      <td id="T_8daf5_row15_col18" class="data row15 col18" >5.000000</td>
+      <td id="T_8daf5_row15_col19" class="data row15 col19" >3.000000</td>
+      <td id="T_8daf5_row15_col20" class="data row15 col20" >49.000000</td>
+      <td id="T_8daf5_row15_col21" class="data row15 col21" >1.000000</td>
+      <td id="T_8daf5_row15_col22" class="data row15 col22" >nan</td>
+    </tr>
+    <tr>
+      <th id="T_8daf5_level0_row16" class="row_heading level0 row16" >3757</th>
+      <td id="T_8daf5_row16_col0" class="data row16 col0" >2.000000</td>
+      <td id="T_8daf5_row16_col1" class="data row16 col1" >2.000000</td>
+      <td id="T_8daf5_row16_col2" class="data row16 col2" >4.000000</td>
+      <td id="T_8daf5_row16_col3" class="data row16 col3" >0.000000</td>
+      <td id="T_8daf5_row16_col4" class="data row16 col4" >5.000000</td>
+      <td id="T_8daf5_row16_col5" class="data row16 col5" >1.000000</td>
+      <td id="T_8daf5_row16_col6" class="data row16 col6" >nan</td>
+      <td id="T_8daf5_row16_col7" class="data row16 col7" >5.000000</td>
+      <td id="T_8daf5_row16_col8" class="data row16 col8" >nan</td>
+      <td id="T_8daf5_row16_col9" class="data row16 col9" >0.000000</td>
+      <td id="T_8daf5_row16_col10" class="data row16 col10" >0.000000</td>
+      <td id="T_8daf5_row16_col11" class="data row16 col11" >0.000000</td>
+      <td id="T_8daf5_row16_col12" class="data row16 col12" >0.000000</td>
+      <td id="T_8daf5_row16_col13" class="data row16 col13" >4.000000</td>
+      <td id="T_8daf5_row16_col14" class="data row16 col14" >4.000000</td>
+      <td id="T_8daf5_row16_col15" class="data row16 col15" >5.000000</td>
+      <td id="T_8daf5_row16_col16" class="data row16 col16" >2.000000</td>
+      <td id="T_8daf5_row16_col17" class="data row16 col17" >4.000000</td>
+      <td id="T_8daf5_row16_col18" class="data row16 col18" >0.000000</td>
+      <td id="T_8daf5_row16_col19" class="data row16 col19" >4.000000</td>
+      <td id="T_8daf5_row16_col20" class="data row16 col20" >42.000000</td>
+      <td id="T_8daf5_row16_col21" class="data row16 col21" >1.000000</td>
+      <td id="T_8daf5_row16_col22" class="data row16 col22" >nan</td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+
+For now, we can conclude that the SII score is sometimes incorrect.
+
+
+Also, all columns have a substantial proportion of missing values, except id and the three basic demographic columns for sex, age and season of enrollment. Even the target sii has missing values:
+
+
+```python
+### Plot distribution of the target variable
+from matplotlib.ticker import PercentFormatter
+
+# Calculate the missing values count and ratio
+missing_count = (
+    train.isnull().sum()
+    .reset_index()
+    .rename(columns={0: 'null_count', 'index': 'feature'})
+    .sort_values(by='null_count', ascending=False)
+)
+missing_count['null_ratio'] = missing_count['null_count'] / len(train)
+
+# Plot the missing values
+plt.figure(figsize=(6, 15))
+plt.title('Missing values over the whole training dataset')
+plt.barh(np.arange(len(missing_count)), missing_count['null_ratio'], color='coral', label='missing')
+plt.barh(np.arange(len(missing_count)), 1 - missing_count['null_ratio'], left=missing_count['null_ratio'],
+         color='darkseagreen', label='available')
+plt.yticks(np.arange(len(missing_count)), missing_count['feature'])
+plt.gca().xaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
+plt.xlim(0, 1)
+plt.legend()
+plt.show()
+```
+
+
+    
+![png](Report_files/Report_26_0.png)
+    
+
+
+### Plot distribution of the target variable
+
+The target variable sii is ordinal and imbalanced, with the majority of participants having a score of 0 (None) or 1 (Mild), 2 (Moderate) 14% and only 1.2% for 3 (Severe). This will heavily affect the model accuracy for minority class like 2 and 3
+
+The distribution is as follows:
+
+
+```python
+# Calculate the value counts and percentages
+sii_counts = train['sii'].value_counts().reset_index()
+sii_counts.columns = ['sii', 'count']
+total = sii_counts['count'].sum()
+sii_counts['percentage'] = (sii_counts['count'] / total) * 100
+
+# Create the plot
+fig, ax = plt.subplots(figsize=(14, 5))
+
+# Plot the bar chart
+sns.barplot(x='sii', y='count', data=sii_counts, palette='Blues_d', ax=ax)
+ax.set_title('Distribution of Severity Impairment Index (sii)', fontsize=14)
+
+# Annotate the bars with counts and percentages
+for p in ax.patches:
+    height = p.get_height()
+    percentage = sii_counts.loc[sii_counts['count'] == height, 'percentage'].values[0]
+    ax.text(
+        p.get_x() + p.get_width() / 2,
+        height + 5, f'{int(height)} ({percentage:.1f}%)',
+        ha="center", fontsize=12
+    )
+
+plt.show()
+```
+
+
+    
+![png](Report_files/Report_29_0.png)
+    
+
+
+# Addition info
+
+The study participants are between 5 and 22 years old. There are twice as many boys as girls.
+
+The four seasons of enrollment have similar frequencies
+
+
+```python
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+# Season of Enrollment
+season_counts = train['Basic_Demos-Enroll_Season'].value_counts(dropna=False)
+
+axes[0].pie(
+    season_counts, labels=season_counts.index,
+    autopct='%1.1f%%', startangle=90,
+    colors=sns.color_palette("Set3")
+)
+axes[0].set_title('Season of Enrollment')
+axes[0].axis('equal')
+
+# Age Distribution by Sex
+sns.histplot(
+    data=train, x='Basic_Demos-Age',
+    hue='Basic_Demos-Sex', multiple='dodge',
+    palette="Set2", bins=20, ax=axes[1]
+)
+axes[1].set_title('Age Distribution by Sex')
+axes[1].set_xlabel('Age')
+axes[1].set_ylabel('Count')
+
+plt.tight_layout()
+plt.show()
+```
+
+
+    
+![png](Report_files/Report_32_0.png)
+    
+
+
+Boys have a slightly higher risk of internet addiction than girls
+
+
+```python
+# Define target_labels
+target_labels = ['None', 'Mild', 'Moderate', 'Severe']
+
+# Create the subplots
+fig, axs = plt.subplots(2, 1, sharex=True, sharey=True)
+
+# Loop through each sex (0 for boys, 1 for girls)
+for sex in range(2):
+    ax = axs.ravel()[sex]
+    vc = train[train['Basic_Demos-Sex'] == sex]['sii'].value_counts().sort_index()
+    ax.bar(vc.index,
+           vc.values / vc.values.sum(),
+           color=['lightblue', 'coral'][sex],
+           label=['boys', 'girls'][sex])
+    ax.set_xticks(np.arange(4))
+    ax.set_xticklabels(target_labels)
+    ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
+    ax.set_ylabel('count')
+    ax.legend()
+
+# Set the title and labels
+plt.suptitle('Target distribution')
+axs.ravel()[1].set_xlabel('Severity Impairment Index (sii)')
+plt.show()
+```
+
+
+    
+![png](Report_files/Report_34_0.png)
+    
+
+
+# A simple classification model
+
+As díscussed earlier, we have three main approaches to tackle this problem:
+1. Ordinal classification
+2. Multiclass classification
+3. Regression
+
+For this initial model, we will use the second approach: Multiclass classification.
+Because the target variable is cateogorical with 4 levels. Multiclass classification is designed to handle such problems where the goal is to classify instances into one of several categories.
+
+Also Multiclass classification can be applied using a variety of algorithms (e.g., Random Forest, XGBoost, LightGBM), allowing for flexibility in model selection and the ability to leverage ensemble methods for improved performance.
+
+
+
+## But first, let's preprocess the data
+
+
+```python
+train = pd.read_csv('res/train.csv')
+df_test = pd.read_csv('res/test.csv')
+
+# Preprocessing: Select common columns
+common_columns = train.columns.intersection(df_test.columns)
+df_train = train[common_columns].copy()
+if 'sii' in train.columns:
+    df_train['sii'] = train['sii']
+
+# Remove ID column
+df_train.drop('id', axis=1, inplace=True)
+
+# Separate numerical and categorical columns
+cat_columns = df_train.select_dtypes(include=['object', 'category']).columns
+num_columns = df_train.select_dtypes(include=['int64', 'float64']).columns.drop('sii')
+
+# Define preprocessing for numerical and categorical features
+num_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='mean')),
+    ('scaler', StandardScaler())
+])
+
+cat_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))
+])
+
+# Combine preprocessing steps
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', num_transformer, num_columns),
+        ('cat', cat_transformer, cat_columns)
+    ]
+)
+
+# Create a pipeline
+pipeline = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('classifier', RandomForestClassifier(random_state=123, n_estimators=100))
+])
+
+
+# Drop rows with missing target values
+df_train = df_train.dropna(subset=['sii'])
+
+# Separate features and target
+X = df_train.drop('sii', axis=1)
+y = df_train['sii']
+
+# Train-test split
+X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.25, random_state=123)
+
+# Fit the pipeline
+pipeline.fit(X_train, y_train)
+
+# Evaluate the model
+y_valid_pred = pipeline.predict(X_valid)
+
+# Print classification report
+print("Validation Performance:\n", classification_report(y_valid, y_valid_pred))
+
+
+# Preprocess and predict on the test set
+df_test_preprocessed = pipeline['preprocessor'].transform(df_test)
+y_test_pred = pipeline['classifier'].predict(df_test_preprocessed)
+
+# Save predictions to CSV
+df_submit = df_test[['id']].copy()
+df_submit['sii'] = y_test_pred
+df_submit.to_csv('submission.csv', index=False)
+```
+
+    Validation Performance:
+                   precision    recall  f1-score   support
+    
+             0.0       0.64      0.89      0.75       393
+             1.0       0.42      0.23      0.30       196
+             2.0       0.32      0.12      0.18        90
+             3.0       0.00      0.00      0.00         5
+    
+        accuracy                           0.59       684
+       macro avg       0.35      0.31      0.31       684
+    weighted avg       0.53      0.59      0.54       684
+    
+    
+
+    P:\Code\Python\INT3405E_56_ML_Child-Mind-Institute\.venv\Lib\site-packages\sklearn\metrics\_classification.py:1565: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+      _warn_prf(average, modifier, f"{metric.capitalize()} is", len(result))
+    P:\Code\Python\INT3405E_56_ML_Child-Mind-Institute\.venv\Lib\site-packages\sklearn\metrics\_classification.py:1565: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+      _warn_prf(average, modifier, f"{metric.capitalize()} is", len(result))
+    P:\Code\Python\INT3405E_56_ML_Child-Mind-Institute\.venv\Lib\site-packages\sklearn\metrics\_classification.py:1565: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+      _warn_prf(average, modifier, f"{metric.capitalize()} is", len(result))
+    
+
+## Random Forest Classifier
+Random Forest algorithm is a powerful tree learning technique in Machine Learning. It works by creating a number of Decision Trees during the training phase. Each tree is constructed using a random subset of the data set to measure a random subset of features in each partition. This randomness introduces variability among individual trees, reducing the risk of overfitting and improving overall prediction performance. Additionally, it is well-suited for multi-class classification problems, handles imbalanced datasets effectively when combined with SMOTE, provides insights into feature importance, and is robust to noise and outliers. Our initial implementation using the Random Forest classifier performed poorly, with score 0.15 and after improve the best score we get is 0.361.
+
+Balancing Model Complexity: to prevent the model from overfitting and underfitting, we use three sets of parameters in the grid search. Each set represents different levels of model complexity: one with a smaller number of trees and shallower depths to prevent overfitting, another with larger numbers of trees and deeper depths to capture more complexity, and a third that strikes a balance between the two. By using 3 configurations, we ensure the model finds the optimal complexity that generalizes well to unseen data, avoiding both the risk of overfitting and the limitation of underfitting.
+
+SMOTE
+The Synthetic Minority Over-Sampling Technique (SMOTE) is a powerful method used to handle class imbalance in datasets. SMOTE handles this issue by generating samples of minority classes to make the class distribution balanced. SMOTE works by generating synthetic examples in the feature space of the minority class. Using SMOTE to address this imbalance dataset is essential for enhancing the model’s performance.In the second version we addinh SMOTE to slove the umbalance data problem, it significantly boosts the model's performance by more than 2 times, increasing from 0.15 to over 0.3.
+
+GridSearchCV
+GridSearchCV is a powerful tool in Scikit-learn for hyperparameter tuning, designed to find the best parameter combination for a given machine learning model. It performs an exhaustive search over a specified parameter grid, evaluating each combination using cross-validation to ensure robust performance. The tool uses the provided scoring metric to determine the best-performing parameters and can automatically refit the model using those parameters for final use.In version 3, by adding GridSearchCV we observed an improvement in performance, with the score increasing from 0.361 to 0.423. However, we find it overfitting affter private score significantly dropped to just 0.332.
