@@ -1,6 +1,6 @@
 # Table of Contents
 - [Explore Data](#explore-data)
-- [A simple classification model](#a-simple-classification-model)
+- [A Classification model](#a-classification-model)
 
 # Understanding the problem
 
@@ -1301,7 +1301,7 @@ Boys have a slightly higher risk of internet addiction than girls
     
 
 
-# A simple classification model
+# A classification model
 
 As discussed earlier, we have three main approaches to tackle this problem:
 1. Ordinal classification
@@ -1484,7 +1484,8 @@ Why were these five models selected?
 - XGBoost: not only has excellent performance, but also greatly improves learning speed by parallelizing the learning process. It can efficiently utilize multi-core CPUs to quickly learn even large datasets
 
 Ensemble Models: We use a Voting Regressor to combine the predictions of several powerful models: LightGBM, XGBoost, and CatBoost, Random Forest. This method helps improve the overall performance by leveraging the strengths of each model, reduce overfitting and improves generalization.
-- The model uses a Voting Regressor, which combines the predictions from LightGBM, XGBoost, and CatBoost, Random Forest. This approach is beneficial as it leverages the strengths of multiple models, reducing overfitting and improving overall model performance. Instead of selecting the "best" single model, the Voting Regressor averages the predictions of several models, aiming to reduce the variance and improve prediction accuracy.
+- The model uses a Voting Regressor, which combines the predictions from LightGBM, XGBoost, and CatBoost, Random Forest. This approach is beneficial as it leverages the strengths of multiple models, reducing overfitting and improving overall model performance.     
+ Instead of selecting the "best" single model, the Voting Regressor averages the predictions of several models, aiming to reduce the variance and improve prediction accuracy.
 ![png](Report_files/Picture1.png)
 
 
