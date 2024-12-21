@@ -1,7 +1,11 @@
 # Table of Contents
+- [Understanding the problem](#understanding-the-problem)
 - [Explore Data](#explore-data)
 - [A Classification model](#a-classification-model)
-
+- [Random Forest Classifier (V1)](#random-forest-classifier-v1)
+- [SMOTE (V2)](#smote-v2)
+- [GridSearchCV (V3)](#gridsearchcv-v3)
+- [Ensemble Models (V4)](#ensemble-models-v4)
 # Understanding the problem
 
 The aim of this competition is to predict the Severity Impairment Index (sii), which measures the level of problematic internet use among children and adolescents, based on physical activity data and other features.
@@ -1465,7 +1469,7 @@ https://www.kaggle.com/competitions/child-mind-institute-problematic-internet-us
 
 
 
-## The combination (V4)
+## Ensemble Models (V4)
 ### Another approach from using Random Forest
 Initially, a Random Forest classifier served as the baseline for this task. However, challenges in optimizing performance metrics prompted the adoption of advanced ensemble techniques, leveraging gradient boosting methods to enhance both accuracy and generalization.
 
