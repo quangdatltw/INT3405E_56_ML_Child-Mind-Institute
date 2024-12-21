@@ -1,3 +1,6 @@
+# Table of Contents
+- [Explore Data](#explore-data)
+- [A simple classification model](#a-simple-classification-model)
 
 # Understanding the problem
 
