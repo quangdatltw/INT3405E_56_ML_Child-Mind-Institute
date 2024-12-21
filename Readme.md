@@ -351,7 +351,7 @@ Also, another strategy involves predicting responses to each question of the Par
     Test shape: (20, 59)
     
 
-# SII and PCIAT
+## SII and PCIAT
 
 Let's identify the features that are related to the target variable and that are not present in the test set.
 
@@ -911,19 +911,7 @@ Also, all columns have a substantial proportion of missing values, except id and
 
 
 <div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
 
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
 <table border="1" class="dataframe">
   <thead>
     <tr style="text-align: right;">
@@ -1286,7 +1274,7 @@ The distribution is as follows:
     
 
 
-# Addition info
+## Addition info
 
 The study participants are between 5 and 22 years old. There are twice as many boys as girls.
 
