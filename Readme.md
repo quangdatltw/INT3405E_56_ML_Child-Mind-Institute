@@ -1394,7 +1394,8 @@ pipeline = Pipeline(steps=[
 
 
 ## Random Forest Classifier (V1)
-Random Forest algorithm is a powerful tree learning technique in Machine Learning. It works by creating a number of Decision Trees during the training phase. Each tree is constructed using a random subset of the data set to measure a random subset of features in each partition. This randomness introduces variability among individual trees, reducing the risk of overfitting and improving overall prediction performance. Additionally, it is well-suited for multi-class classification problems. Our initial implementation using only the Random Forest classifier performed quite poorly, with score 0.150 on private test and 0.254 on public test.
+Random Forest algorithm is a powerful tree learning technique in Machine Learning. It works by creating a number of Decision Trees during the training phase. Each tree is constructed using a random subset of the data set to measure a random subset of features in each partition. This randomness introduces variability among individual trees, reducing the risk of overfitting and improving overall prediction performance. Additionally, it is well-suited for multi-class classification problems.    
+Our initial implementation using only the Random Forest classifier performed quite poorly, with score 0.150 on private test and 0.254 on public test.
 ![png](Report_files/1.png)
 As we can see below, the model is not performing well, with low precision and recall for the minority classes (2 and 3). This is likely due to the imbalanced nature of the target variable, which has a majority of samples in classes 0 and 1.
 
