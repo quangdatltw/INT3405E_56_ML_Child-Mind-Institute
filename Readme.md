@@ -1,3 +1,12 @@
+# INT3405E 56 - Final Project
+### This is GitHub repo of the ML project for the competition "Child Mind Institute — Problematic Internet Use" on Kaggle   
+We are Team 11   
+Contributor:    
+Đàm Quang Đạt, 22028026   
+Trần Thế Mạnh, 22028195    
+Dương Quốc Khánh, 22028090   
+
+
 # Table of Contents
 - [Understanding the problem](#understanding-the-problem)
 - [Explore Data](#explore-data)
